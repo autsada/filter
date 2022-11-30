@@ -1,0 +1,26 @@
+#root {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.section {
+  margin: 0 auto;
+  width: 60%;
+}
+
+.dropdowns {
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+}
+
+.dropdown {
+  width: 100px;
+}
+
+.select {
+  min-width: 100px;
+}
