@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from "react"
 
-// Assumming this data is received from the API.
-const data = ["Blue", "Basketball", "Vue", "Node"]
+// Assumming these sets of data are received from the API.
+const data = {
+  1: ["Red", "Football", "React", "Laravel"],
+  2: ["Green", "Football", "Vue", "Node"],
+  3: ["Blue", "Basketball", "Vue", "Node"],
+  4: ["Red", "Boxing", "Angular", "Laravel"],
+}
 
 /**
  * A dropdown component
  */
-export default function CartItem({
-  allItems,
-  setAllItems,
-  selectedItems,
-  setSelectedItems,
-  nonSelectedItems,
-  itemToRemove,
-  setItemToRemove,
-}) {
+export default function CartItem({ item, selectedItems, setSelectedItems }) {
+  // Fetched data.
+  const [items, setItems] = useState([])
   // The filtered data.
   const [filteredItems, setFilteredItems] = useState([])
   // Preselect item.
@@ -22,88 +21,86 @@ export default function CartItem({
   // The item when user selects from a dropdown.
   const [selected, setSelected] = useState()
 
-  // On the first render, put the items that fetched from the API to the `allItems` state in the parent, make sure to put only unique items, this will run only once.
+  // On the first render, put the items that fetched from the API to the `items`, this will run only once.
   useEffect(() => {
-    setAllItems((prev) => {
-      const uniqueItems = data.filter((i) => prev.indexOf(i) < 0)
-      return [...prev, ...uniqueItems]
-    })
-  }, [])
+    setItems(data[item])
+  }, [item])
 
-  // When all items are available, set `preselected` and `selected` (same value), this will run only once.
+  // When items are available, set `preSelect` and update `selectedItems` state on the parent, this will run only once.
   useEffect(() => {
-    if (allItems.length > 0) {
-      const handlePreSelect = async () => {
-        const ps = await getPreSelect()
-        setPreSelect(ps)
-        setSelected(ps)
-      }
-
-      handlePreSelect()
-    }
-  }, [allItems.length])
-
-  // The function to get a preselect item for each dropdown, need to update the `selectedItems` on the parent in this function.
-  function getPreSelect() {
-    return new Promise((resolve, reject) => {
-      setSelectedItems((prev) => {
-        // Find the first item in the `allItems` state that is not already selected by other dropdowns.
-        const nonSelectedItem = allItems.filter((i) => prev.indexOf(i) < 0)[0]
-        resolve(nonSelectedItem)
-        return nonSelectedItem ? [...prev, nonSelectedItem] : prev
-      })
-    })
-  }
-
-  // Once the `preselect` is set, update the dropdowns option, this will run only once.
-  useEffect(() => {
-    if (preSelect) {
-      setFilteredItems((prev) =>
-        prev.includes(preSelect) ? prev : [preSelect, ...prev]
+    if (items.length > 0) {
+      const preSelect = items[0]
+      setPreSelect(preSelect)
+      setSelectedItems((prev) =>
+        prev.map((i) => i.value).includes(preSelect)
+          ? prev
+          : [...prev, { identifier: item, value: preSelect }]
       )
     }
-  }, [preSelect])
+  }, [items.length])
 
-  // When the `nonSelectedItems` changed, put them in the `filteredItems` for displaying.
+  // When the `selectedItems` changed, update the `filteredItems`.
   useEffect(() => {
-    if (nonSelectedItems.length > 0) {
-      setFilteredItems((prev) => {
-        const newItems = nonSelectedItems.filter((i) => prev.indexOf(i) < 0)
-        return [...prev, ...newItems]
-      })
+    if (items.length > 0 && selectedItems.length > 0) {
+      filtering(selectedItems)
     }
-  }, [nonSelectedItems])
+  }, [items.length, selectedItems])
 
-  // When `selected` and `itemToRemove` changed, update the `filteredItems`
-  useEffect(() => {
-    if (itemToRemove) {
-      if (itemToRemove !== selected) {
-        setFilteredItems((prev) => prev.filter((i) => i !== itemToRemove))
+  // Filtering logic.
+  function filtering(currentSelectedItems) {
+    const filtered = items.filter((i) => {
+      const includedItem = currentSelectedItems.find((sl) => sl.value === i)
+      if (includedItem) {
+        if (includedItem.identifier === item) return true
+        else return false
+      } else {
+        return true
       }
-    }
-  }, [selected, itemToRemove])
-
-  // A function to select item.
-  function selectItem(e) {
-    const item = e.target.value
-
-    // Set `selected`
-    setSelected(item)
-
-    // Update the `selectedItems` state.
-    setSelectedItems((prev) => {
-      const updatedList = [...prev]
-      // 1. Change the previous selected to the new selected.
-      const oldSelectedIndex = prev.indexOf(selected)
-      if (oldSelectedIndex > -1) {
-        updatedList[oldSelectedIndex] = item
-      }
-
-      return updatedList
     })
 
-    // Update the `itemToRemove` state.
-    setItemToRemove(item)
+    // For the first render, if the `preSelect` of the dropdown has been already taked by other dropdowns, we need to reset the `preSelect` and update the `selectedItems`.
+    const newPreSelect = filtered[0]
+    if (
+      newPreSelect &&
+      !selected &&
+      preSelect !== newPreSelect &&
+      currentSelectedItems.findIndex((i) => i.identifier === item) < 0
+    ) {
+      setPreSelect(newPreSelect)
+      setSelectedItems((prev) => {
+        return prev.map((i) => i.value).includes(newPreSelect)
+          ? prev
+          : [...prev, { identifier: item, value: newPreSelect }]
+      })
+    }
+
+    // Update the `filteredItems`.
+    setFilteredItems(filtered)
+  }
+
+  // A function to select an option.
+  function selectItem(e) {
+    const newSelect = e.target.value
+
+    // Set `selected`
+    setSelected(newSelect)
+
+    // Update the `selectedItems`.
+    setSelectedItems((prev) => {
+      // Find the index of the already selected item of the dropdown.
+      const index = prev.findIndex((i) => i.identifier === item)
+      if (index > -1) {
+        // Found the selected item of the dropdown.
+        const updatedList = [...prev]
+        // Asign the new selected to the existing selected item in the `selectedItems` state.
+        updatedList[index].value = newSelect
+
+        return updatedList
+      } else {
+        // Not Found the selected item of the dropdown.
+        return [...prev, { identifier: item, value: newSelect }]
+      }
+    })
   }
 
   return (
