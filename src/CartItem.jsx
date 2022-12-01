@@ -1,145 +1,106 @@
 import React, { useState, useEffect } from "react"
 
-// Assumming these sets of data are received from the API.
-const items1 = ["Red", "Football", "React", "Laravel"]
-const items2 = ["Green", "Football", "Vue", "Node"]
-const items3 = ["Blue", "Basketball", "Vue", "Node"]
+// Assumming this data is received from the API.
+const data = ["Blue", "Basketball", "Vue", "Node"]
 
 /**
  * A dropdown component
  */
 export default function CartItem({
   identifier,
-  item,
   selectedItems,
   setSelectedItems,
-  allSelectedItemsCount,
+  selectedItemsCount,
 }) {
-  // The items that will be set after fetching data from the API.
+  // The original data from the API.
   const [items, setItems] = useState([])
+  // The filtered data.
+  const [filteredItems, setFilteredItems] = useState([])
+  const [preSelect, setPreSelect] = useState()
   // The item when user selects from a dropdown.
   const [selected, setSelected] = useState()
 
-  // Assumming we fetch items depending on the item props on the first render.
+  // Set original items on the first render (this will only run once).
   useEffect(() => {
-    if (item === 1) {
-      setItems(items1)
-      // Set the first item as a preselected
-      const preselected = items1[0]
-      setSelected(preselected)
+    setItems(data)
+    setFilteredItems(data)
+    const newSelected = data[0]
+    let oldSelected
+    setSelected((prev) => {
+      oldSelected = prev
+      return newSelected
+    })
+    handleUpdatedSelectedItems(oldSelected, newSelected)
+  }, [])
 
-      // Store the preselected in the parent's selected items array
-      setSelectedItems((prev) => {
-        // Find the index by identifier
-        const index = prev.findIndex((i) => i.identifier === identifier)
-        if (index >= 0) {
-          const updatedState = [...prev]
-          // Check to only add the selected value once
-          updatedState[index].values = updatedState[index].values.includes(
-            preselected
-          )
-            ? updatedState[index].values
-            : [...updatedState[index].values, preselected]
-          return updatedState
-        } else {
-          return [...prev, { identifier, values: [preselected] }]
-        }
-      })
+  // When `updatedItems` changed, update the `filteredItems`
+  useEffect(() => {
+    if (items.length === 0) return
+    if (selectedItems.length > 0) {
+      // Update the dropdowns options
+      const concernSelectedItems = selectedItems.filter(
+        (it) => it.identifier !== identifier
+      )
+      setFilteredItems(
+        items.filter(
+          (i) => concernSelectedItems.map((it) => it.value).indexOf(i) < 0
+        )
+      )
     }
-    if (item === 2) {
-      setItems(items2)
-      // Set the first item as a preselected
-      const preselected = items2[0]
-      setSelected(preselected)
+  }, [items, selectedItems, identifier])
 
-      // Store the preselected in the parent's selected items array
-      setSelectedItems((prev) => {
-        // Find the index by identifier
-        const index = prev.findIndex((i) => i.identifier === identifier)
-        if (index >= 0) {
-          const updatedState = [...prev]
-          // Check to only add the selected value once
-          updatedState[index].values = updatedState[index].values.includes(
-            preselected
-          )
-            ? updatedState[index].values
-            : [...updatedState[index].values, preselected]
-          return updatedState
-        } else {
-          return [...prev, { identifier, values: [preselected] }]
-        }
-      })
+  // When the `filteredItems` changed, update the (pre) `selected`
+  useEffect(() => {
+    if (filteredItems.length > 0) {
+      const preselected = filteredItems[0]
+      handleUpdatedSelectedItems(selected, preselected)
     }
-    if (item === 3) {
-      setItems(items3)
-      // Set the first item as a preselected
-      const preselected = items3[0]
-      setSelected(preselected)
+  }, [selected, filteredItems])
 
-      // Store the preselected in the parent's selected items array
-      setSelectedItems((prev) => {
-        // Find the index by identifier
-        const index = prev.findIndex((i) => i.identifier === identifier)
-        if (index >= 0) {
-          const updatedState = [...prev]
-          // Check to only add the selected value once
-          updatedState[index].values = updatedState[index].values.includes(
-            preselected
+  function handleUpdatedSelectedItems(oldSelected, newSelected) {
+    setSelectedItems((prevSelectedItems) => {
+      // A. The `newSelected` is NOT in the `selectedItems`.
+      if (!prevSelectedItems.map((it) => it.value).includes(newSelected)) {
+        let updatedSelectedItems = [...prevSelectedItems]
+        // If the `oldSelected` is already in the `selectedItems`.
+        if (updatedSelectedItems.map((it) => it.value).includes(oldSelected)) {
+          // A-1. Remove the `oldSelected` from the `selectedItems`.
+          const oldSelectedIndex = updatedSelectedItems.findIndex(
+            (it) => it.value === oldSelected
           )
-            ? updatedState[index].values
-            : [...updatedState[index].values, preselected]
-          return updatedState
-        } else {
-          return [...prev, { identifier, values: [preselected] }]
+          if (oldSelectedIndex > -1)
+            updatedSelectedItems.splice(oldSelectedIndex, 1)
         }
-      })
-    }
-  }, [item])
 
-  // A function to select item.
-  function selectItem(e) {
-    const item = e.target.value
-    setSelected(item)
-
-    // Put the selected item into the parent's selectedItems state.
-    setSelectedItems((prev) => {
-      // Find the index by identifier
-      const index = prev.findIndex((i) => i.identifier === identifier)
-      if (index >= 0) {
-        // Create a new copy of the state, otherwise the component will not rerender and the UI will not update.
-        const updatedState = [...prev]
-        // Check to only add the selected value once
-        updatedState[index].values = updatedState[index].values.includes(item)
-          ? updatedState[index].values
-          : [...updatedState[index].values, item]
-        return updatedState
+        // A-3. Add the `newSelected` into the `selectedItems`.
+        return [...updatedSelectedItems, { identifier, value: newSelected }]
       } else {
-        return [...prev, { identifier, values: [item] }]
+        // B. The `newSelected` is already in the `selectedItems`.
+        // B-1. Reset `selected` to `undefined`.
+        // setSelected()
+
+        // B-2. Return the previous state.
+        return prevSelectedItems
       }
     })
   }
 
-  // When the selectedItems in the parent's state changes, filter out that item from the items state.
-  useEffect(() => {
-    // console.log(`run: ${identifier}`, allSelectedItemsCount)
-    if (allSelectedItemsCount > 0) {
-      // Get the selected items from all other dropdowns
-      const otherDropdownSelectedItems = selectedItems
-        .filter((i) => i.identifier !== identifier)
-        .reduce((values, i) => [...values, ...i.values], []) // This will return an array of selected items in other dropdowns
+  // A function to select item.
+  function selectItem(e) {
+    const item = e.target.value
 
-      // Filter out the items that duplicated with the selected item above.
-      setItems((prev) =>
-        prev.filter((i) => otherDropdownSelectedItems.indexOf(i) < 0)
-      )
-    }
-  }, [identifier, allSelectedItemsCount])
+    console.log("selected -->", item)
+    // setSelected(item)
+    // handleUpdatedSelectedItems(selected, item)
+  }
 
+  // console.log(`identifier: ${identifier} -->`, selected)
+  // console.log("all -->", selectedItems)
   return (
     <div className="dropdown">
-      {items.length > 0 && (
+      {filteredItems.length > 0 && (
         <select value={selected} onChange={selectItem} className="select">
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <option key={item} value={item}>
               {item}
             </option>
