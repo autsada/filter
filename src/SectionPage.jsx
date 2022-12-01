@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 
 import CartItem from "./CartItem"
 
@@ -6,10 +6,18 @@ import CartItem from "./CartItem"
  * A Parent components
  */
 export default function SectionPage() {
+  const [allItems, setAllItems] = useState([]) // All unique items from all dropdowns
   const [selectedItems, setSelectedItems] = useState([]) // array of seleted items
+  const [nonSelectedItems, setNonSelectedItems] = useState([]) // These items will be distributed to all dropdowns
+  const [itemToRemove, setItemToRemove] = useState() // This is the item to be remove from the dropdowns that doesn't select it.
 
-  // Use this value as a dependency in the child `useEffect` to identify if the selectedItems array changes in order to update the child dropdown UI.
-  const selectedItemsCount = selectedItems.length
+  // When `allItems` is set, and `selectedItems` changed, update the `nonSelectedItems`.
+  useEffect(() => {
+    if (allItems.length === 0) return
+    if (selectedItems.length > 0) {
+      setNonSelectedItems(allItems.filter((i) => selectedItems.indexOf(i) < 0))
+    }
+  }, [allItems.length, selectedItems])
 
   return (
     <div className="section">
@@ -17,22 +25,34 @@ export default function SectionPage() {
 
       <div className="dropdowns">
         <CartItem
-          identifier={1}
+          allItems={allItems}
+          setAllItems={setAllItems}
           selectedItems={selectedItems}
           setSelectedItems={setSelectedItems}
-          selectedItemsCount={selectedItemsCount}
+          nonSelectedItems={nonSelectedItems}
+          setNonSelectedItems={setNonSelectedItems}
+          itemToRemove={itemToRemove}
+          setItemToRemove={setItemToRemove}
         />
         <CartItem
-          identifier={2}
+          allItems={allItems}
+          setAllItems={setAllItems}
           selectedItems={selectedItems}
           setSelectedItems={setSelectedItems}
-          selectedItemsCount={selectedItemsCount}
+          nonSelectedItems={nonSelectedItems}
+          setNonSelectedItems={setNonSelectedItems}
+          itemToRemove={itemToRemove}
+          setItemToRemove={setItemToRemove}
         />
         <CartItem
-          identifier={3}
+          allItems={allItems}
+          setAllItems={setAllItems}
           selectedItems={selectedItems}
           setSelectedItems={setSelectedItems}
-          selectedItemsCount={selectedItemsCount}
+          nonSelectedItems={nonSelectedItems}
+          setNonSelectedItems={setNonSelectedItems}
+          itemToRemove={itemToRemove}
+          setItemToRemove={setItemToRemove}
         />
       </div>
     </div>

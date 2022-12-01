@@ -7,99 +7,113 @@ const data = ["Blue", "Basketball", "Vue", "Node"]
  * A dropdown component
  */
 export default function CartItem({
-  identifier,
+  allItems,
+  setAllItems,
   selectedItems,
   setSelectedItems,
-  selectedItemsCount,
+  nonSelectedItems,
+  itemToRemove,
+  setItemToRemove,
 }) {
-  // The original data from the API.
-  const [items, setItems] = useState([])
   // The filtered data.
   const [filteredItems, setFilteredItems] = useState([])
+  // Preselect item.
   const [preSelect, setPreSelect] = useState()
   // The item when user selects from a dropdown.
   const [selected, setSelected] = useState()
 
-  // Set original items on the first render (this will only run once).
+  // On the first render, put the items that fetched from the API to the `allItems` state in the parent, make sure to put only unique items, this will run only once.
   useEffect(() => {
-    setItems(data)
-    setFilteredItems(data)
-    const newSelected = data[0]
-    let oldSelected
-    setSelected((prev) => {
-      oldSelected = prev
-      return newSelected
+    setAllItems((prev) => {
+      const uniqueItems = data.filter((i) => prev.indexOf(i) < 0)
+      return [...prev, ...uniqueItems]
     })
-    handleUpdatedSelectedItems(oldSelected, newSelected)
   }, [])
 
-  // When `updatedItems` changed, update the `filteredItems`
+  // When all items are available, set `preselected` and `selected` (same value), this will run only once.
   useEffect(() => {
-    if (items.length === 0) return
-    if (selectedItems.length > 0) {
-      // Update the dropdowns options
-      const concernSelectedItems = selectedItems.filter(
-        (it) => it.identifier !== identifier
-      )
-      setFilteredItems(
-        items.filter(
-          (i) => concernSelectedItems.map((it) => it.value).indexOf(i) < 0
-        )
-      )
-    }
-  }, [items, selectedItems, identifier])
-
-  // When the `filteredItems` changed, update the (pre) `selected`
-  useEffect(() => {
-    if (filteredItems.length > 0) {
-      const preselected = filteredItems[0]
-      handleUpdatedSelectedItems(selected, preselected)
-    }
-  }, [selected, filteredItems])
-
-  function handleUpdatedSelectedItems(oldSelected, newSelected) {
-    setSelectedItems((prevSelectedItems) => {
-      // A. The `newSelected` is NOT in the `selectedItems`.
-      if (!prevSelectedItems.map((it) => it.value).includes(newSelected)) {
-        let updatedSelectedItems = [...prevSelectedItems]
-        // If the `oldSelected` is already in the `selectedItems`.
-        if (updatedSelectedItems.map((it) => it.value).includes(oldSelected)) {
-          // A-1. Remove the `oldSelected` from the `selectedItems`.
-          const oldSelectedIndex = updatedSelectedItems.findIndex(
-            (it) => it.value === oldSelected
-          )
-          if (oldSelectedIndex > -1)
-            updatedSelectedItems.splice(oldSelectedIndex, 1)
-        }
-
-        // A-3. Add the `newSelected` into the `selectedItems`.
-        return [...updatedSelectedItems, { identifier, value: newSelected }]
-      } else {
-        // B. The `newSelected` is already in the `selectedItems`.
-        // B-1. Reset `selected` to `undefined`.
-        // setSelected()
-
-        // B-2. Return the previous state.
-        return prevSelectedItems
+    if (allItems.length > 0) {
+      const handlePreSelect = async () => {
+        const ps = await getPreSelect()
+        setPreSelect(ps)
+        setSelected(ps)
       }
+
+      handlePreSelect()
+    }
+  }, [allItems.length])
+
+  // The function to get a preselect item for each dropdown, need to update the `selectedItems` on the parent in this function.
+  function getPreSelect() {
+    return new Promise((resolve, reject) => {
+      setSelectedItems((prev) => {
+        // Find the first item in the `allItems` state that is not already selected by other dropdowns.
+        const nonSelectedItem = allItems.filter((i) => prev.indexOf(i) < 0)[0]
+        resolve(nonSelectedItem)
+        return nonSelectedItem ? [...prev, nonSelectedItem] : prev
+      })
     })
   }
+
+  // Once the `preselect` is set, update the dropdowns option, this will run only once.
+  useEffect(() => {
+    if (preSelect) {
+      setFilteredItems((prev) =>
+        prev.includes(preSelect) ? prev : [preSelect, ...prev]
+      )
+    }
+  }, [preSelect])
+
+  // When the `nonSelectedItems` changed, put them in the `filteredItems` for displaying.
+  useEffect(() => {
+    if (nonSelectedItems.length > 0) {
+      setFilteredItems((prev) => {
+        const newItems = nonSelectedItems.filter((i) => prev.indexOf(i) < 0)
+        return [...prev, ...newItems]
+      })
+    }
+  }, [nonSelectedItems])
+
+  // When `selected` and `itemToRemove` changed, update the `filteredItems`
+  useEffect(() => {
+    if (itemToRemove) {
+      if (itemToRemove !== selected) {
+        setFilteredItems((prev) => prev.filter((i) => i !== itemToRemove))
+      }
+    }
+  }, [selected, itemToRemove])
 
   // A function to select item.
   function selectItem(e) {
     const item = e.target.value
 
-    console.log("selected -->", item)
-    // setSelected(item)
-    // handleUpdatedSelectedItems(selected, item)
+    // Set `selected`
+    setSelected(item)
+
+    // Update the `selectedItems` state.
+    setSelectedItems((prev) => {
+      const updatedList = [...prev]
+      // 1. Change the previous selected to the new selected.
+      const oldSelectedIndex = prev.indexOf(selected)
+      if (oldSelectedIndex > -1) {
+        updatedList[oldSelectedIndex] = item
+      }
+
+      return updatedList
+    })
+
+    // Update the `itemToRemove` state.
+    setItemToRemove(item)
   }
 
-  // console.log(`identifier: ${identifier} -->`, selected)
-  // console.log("all -->", selectedItems)
   return (
     <div className="dropdown">
       {filteredItems.length > 0 && (
-        <select value={selected} onChange={selectItem} className="select">
+        <select
+          value={selected || preSelect}
+          onChange={selectItem}
+          className="select"
+        >
           {filteredItems.map((item) => (
             <option key={item} value={item}>
               {item}
