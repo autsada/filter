@@ -16,8 +16,6 @@ export default function CartItem({ item, selectedItems, setSelectedItems }) {
   const [items, setItems] = useState([])
   // The filtered data.
   const [filteredItems, setFilteredItems] = useState([])
-  // Preselect item.
-  const [preSelect, setPreSelect] = useState()
   // The item when user selects from a dropdown.
   const [selected, setSelected] = useState()
 
@@ -26,52 +24,57 @@ export default function CartItem({ item, selectedItems, setSelectedItems }) {
     setItems(data[item])
   }, [item])
 
-  // When items are available, set `preSelect` and update `selectedItems` state on the parent, this will run only once.
+  // When items are available, handle preselect the item.
   useEffect(() => {
     if (items.length > 0) {
-      const preSelect = items[0]
-      setPreSelect(preSelect)
-      setSelectedItems((prev) =>
-        prev.map((i) => i.value).includes(preSelect)
-          ? prev
-          : [...prev, { identifier: item, value: preSelect }]
-      )
+      const getPreSelect = async () => {
+        const preSelect = await handlePreSelect()
+        setSelected(preSelect)
+      }
+      getPreSelect()
     }
   }, [items.length])
 
+  // The logic to get a preselect and update the `selectedItems` for the first render.
+  function handlePreSelect() {
+    return new Promise((resolve, reject) => {
+      const preSelect = items[0]
+      setSelectedItems((prev) => {
+        if (prev.includes(preSelect)) {
+          resolve("") // use this resolved value to set the `selected`
+          return prev
+        } else {
+          resolve(preSelect) // use this resolved value to set the `selected`
+          return [...prev, preSelect]
+        }
+      })
+    })
+  }
+
   // When the `selectedItems` changed, update the `filteredItems`.
   useEffect(() => {
-    if (items.length > 0 && selectedItems.length > 0) {
-      filtering(selectedItems)
+    // Make sure the original items are ready and the `selected` is set (not undefined) before doing filtering.
+    if (items.length > 0 && typeof selected !== "undefined") {
+      // Pass the most update `selectedItems` and `selected` to the filtering fn.
+      filtering(selectedItems, selected)
     }
-  }, [items.length, selectedItems])
+  }, [items.length, selectedItems, selected])
 
   // Filtering logic.
-  function filtering(currentSelectedItems) {
-    const filtered = items.filter((i) => {
-      const includedItem = currentSelectedItems.find((sl) => sl.value === i)
-      if (includedItem) {
-        if (includedItem.identifier === item) return true
-        else return false
-      } else {
-        return true
-      }
-    })
+  function filtering(currentSelectedItems, currentSelected) {
+    const filtered = items.filter(
+      (i) =>
+        currentSelectedItems.indexOf(i) < 0 ||
+        (currentSelected && i === currentSelected)
+    )
 
-    // For the first render, if the `preSelect` of the dropdown has been already taked by other dropdowns, we need to reset the `preSelect` and update the `selectedItems`.
-    const newPreSelect = filtered[0]
-    if (
-      newPreSelect &&
-      !selected &&
-      preSelect !== newPreSelect &&
-      currentSelectedItems.findIndex((i) => i.identifier === item) < 0
-    ) {
-      setPreSelect(newPreSelect)
-      setSelectedItems((prev) => {
-        return prev.map((i) => i.value).includes(newPreSelect)
-          ? prev
-          : [...prev, { identifier: item, value: newPreSelect }]
-      })
+    // For the first render if `selected` not set, we have to reset the `selected` and put the new selected in the `selectedItems`.
+    if (typeof currentSelected === "string" && !currentSelected) {
+      const newSelect = filtered[0]
+      setSelected(newSelect)
+      setSelectedItems((prev) =>
+        prev.includes(newSelect) ? prev : [...prev, newSelect]
+      )
     }
 
     // Update the `filteredItems`.
@@ -87,18 +90,19 @@ export default function CartItem({ item, selectedItems, setSelectedItems }) {
 
     // Update the `selectedItems`.
     setSelectedItems((prev) => {
-      // Find the index of the already selected item of the dropdown.
-      const index = prev.findIndex((i) => i.identifier === item)
+      // Find the index of the old selected.
+      const index = prev.findIndex((i) => i === selected)
       if (index > -1) {
-        // Found the selected item of the dropdown.
+        // A. Found the selected item of the dropdown.
+        // Replace the old selected with the new selected.
         const updatedList = [...prev]
-        // Asign the new selected to the existing selected item in the `selectedItems` state.
-        updatedList[index].value = newSelect
+        updatedList[index] = newSelect
 
         return updatedList
       } else {
-        // Not Found the selected item of the dropdown.
-        return [...prev, { identifier: item, value: newSelect }]
+        // B. Not Found the selected item of the dropdown.
+        // Add the new selected.
+        return [...prev, newSelect]
       }
     })
   }
@@ -106,11 +110,7 @@ export default function CartItem({ item, selectedItems, setSelectedItems }) {
   return (
     <div className="dropdown">
       {filteredItems.length > 0 && (
-        <select
-          value={selected || preSelect}
-          onChange={selectItem}
-          className="select"
-        >
+        <select value={selected} onChange={selectItem} className="select">
           {filteredItems.map((item) => (
             <option key={item} value={item}>
               {item}
